@@ -2,8 +2,8 @@
 
 // Arquivo de Formatação inicial do Sistema de Arquivos
 
-Superblock superbloco;
-Inode inodos[NUM_INODES];
+Superbloco superbloco;
+Inode inodes[NUM_INODES];
 unsigned char mapa_espaco_livre[NUM_BLOCKS / 8];
 
 void escrever_bloco(int num_bloco, void* buffer) {
@@ -28,7 +28,7 @@ int encontrar_bloco_livre() {
 
 int encontrar_inode_livre() {
     for (int i = 0; i < NUM_INODES; i++) {
-        if (inodos[i].type == '0') return i;
+        if (inodes[i].type == '0') return i;
     }
     return -1;
 }
@@ -36,7 +36,7 @@ int encontrar_inode_livre() {
 void fs_desmontar() {
     FILE* f;
     f = fopen("fs/inodes.dat", "wb");
-    fwrite(inodos, sizeof(Inode), NUM_INODES, f);
+    fwrite(inodes, sizeof(Inode), NUM_INODES, f);
     fclose(f);
     f = fopen("fs/freespace.dat", "wb");
     fwrite(mapa_espaco_livre, sizeof(mapa_espaco_livre), 1, f);
@@ -52,16 +52,16 @@ void fs_formatar() {
     superbloco.partitionsize = PARTITION_SIZE;
     superbloco.num_blocks = NUM_BLOCKS;
     superbloco.num_inodes = NUM_INODES;
-    FILE* f_super = fopen("fs/superblock.dat", "wb");
-    fwrite(&superbloco, sizeof(Superblock), 1, f_super);
+    FILE* f_super = fopen("fs/Superbloco.dat", "wb");
+    fwrite(&superbloco, sizeof(Superbloco), 1, f_super);
     fclose(f_super);
 
-    memset(inodos, 0, sizeof(inodos));
+    memset(inodes, 0, sizeof(inodes));
     for (int i = 0; i < NUM_INODES; i++) {
-        inodos[i].type = '0';
+        inodes[i].type = '0';
     }
     FILE* f_inodes = fopen("fs/inodes.dat", "wb");
-    fwrite(inodos, sizeof(Inode), NUM_INODES, f_inodes);
+    fwrite(inodes, sizeof(Inode), NUM_INODES, f_inodes);
     fclose(f_inodes);
     
     memset(mapa_espaco_livre, 0, sizeof(mapa_espaco_livre));
@@ -81,19 +81,19 @@ void fs_formatar() {
     int inode_raiz = encontrar_inode_livre();
     int bloco_raiz = encontrar_bloco_livre();
     
-    inodos[inode_raiz].type = 'd';
-    inodos[inode_raiz].size = 2 * sizeof(DirectoryEntry);
-    inodos[inode_raiz].direct_pointers[0] = bloco_raiz;
+    inodes[inode_raiz].type = 'd';
+    inodes[inode_raiz].size = 2 * sizeof(EntradaDiretorio);
+    inodes[inode_raiz].direct_pointers[0] = bloco_raiz;
     definir_bit(bloco_raiz);
 
-    DirectoryEntry entradas[2];
+    EntradaDiretorio entradas[2];
     strcpy(entradas[0].name, ".");
     entradas[0].inode_number = inode_raiz;
     strcpy(entradas[1].name, "..");
     entradas[1].inode_number = inode_raiz;
 
     char buffer_bloco[BLOCK_SIZE] = {0};
-    memcpy(buffer_bloco, entradas, 2 * sizeof(DirectoryEntry));
+    memcpy(buffer_bloco, entradas, 2 * sizeof(EntradaDiretorio));
     escrever_bloco(bloco_raiz, buffer_bloco);
     
     fs_desmontar();

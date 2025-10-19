@@ -1,12 +1,10 @@
 #include "fs.h"
 
 // --- Variáveis Globais (Estado do FS em Memória) ---
-Superblock superbloco;
-Inode inodos[NUM_INODES];
+Superbloco superbloco;
+Inode inodes[NUM_INODES];
 unsigned char mapa_espaco_livre[NUM_BLOCKS / 8];
 int inode_diretorio_atual;
-
-// --- Funções Auxiliares ---
 
 void definir_bit(int num_bloco) {
     mapa_espaco_livre[num_bloco / 8] |= (1 << (num_bloco % 8));
@@ -29,7 +27,7 @@ int encontrar_bloco_livre() {
 
 int encontrar_inode_livre() {
     for (int i = 0; i < NUM_INODES; i++) {
-        if (inodos[i].type == '0') return i;
+        if (inodes[i].type == '0') return i;
     }
     return -1;
 }
@@ -52,12 +50,10 @@ void escrever_bloco(int num_bloco, void* buffer) {
     fclose(f);
 }
 
-// --- Implementação dos comandos ---
-
 void fs_montar() {
     FILE* f;
-    if ((f = fopen("fs/superblock.dat", "rb"))) {
-        fread(&superbloco, sizeof(Superblock), 1, f);
+    if ((f = fopen("fs/Superbloco.dat", "rb"))) {
+        fread(&superbloco, sizeof(Superbloco), 1, f);
         fclose(f);
     } else {
         printf("Sistema de arquivos não encontrado. Execute o programa 'format' primeiro.\n");
@@ -65,7 +61,7 @@ void fs_montar() {
     }
 
     if ((f = fopen("fs/inodes.dat", "rb"))) {
-        fread(inodos, sizeof(Inode), NUM_INODES, f);
+        fread(inodes, sizeof(Inode), NUM_INODES, f);
         fclose(f);
     } else {
        printf("inodes.dat não encontrado!\n"); exit(1);
@@ -84,7 +80,7 @@ void fs_montar() {
 void fs_desmontar() {
     FILE* f;
     f = fopen("fs/inodes.dat", "wb");
-    fwrite(inodos, sizeof(Inode), NUM_INODES, f);
+    fwrite(inodes, sizeof(Inode), NUM_INODES, f);
     fclose(f);
 
     f = fopen("fs/freespace.dat", "wb");
@@ -101,43 +97,43 @@ void fs_criar_diretorio(const char* nome) {
         return;
     }
 
-    Inode* inode_pai = &inodos[inode_diretorio_atual];
+    Inode* inode_pai = &inodes[inode_diretorio_atual];
     char buffer_bloco[BLOCK_SIZE];
     ler_bloco(inode_pai->direct_pointers[0], buffer_bloco);
     
-    DirectoryEntry* entradas = (DirectoryEntry*)buffer_bloco;
-    int conta_entradas = inode_pai->size / sizeof(DirectoryEntry);
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
+    int conta_entradas = inode_pai->size / sizeof(EntradaDiretorio);
     entradas[conta_entradas].inode_number = novo_num_inode;
     strncpy(entradas[conta_entradas].name, nome, MAX_FILENAME);
     escrever_bloco(inode_pai->direct_pointers[0], buffer_bloco);
-    inode_pai->size += sizeof(DirectoryEntry);
+    inode_pai->size += sizeof(EntradaDiretorio);
 
-    inodos[novo_num_inode].type = 'd';
-    inodos[novo_num_inode].size = 2 * sizeof(DirectoryEntry);
-    inodos[novo_num_inode].direct_pointers[0] = novo_num_bloco;
+    inodes[novo_num_inode].type = 'd';
+    inodes[novo_num_inode].size = 2 * sizeof(EntradaDiretorio);
+    inodes[novo_num_inode].direct_pointers[0] = novo_num_bloco;
     definir_bit(novo_num_bloco);
     
-    DirectoryEntry novas_entradas[2];
+    EntradaDiretorio novas_entradas[2];
     strcpy(novas_entradas[0].name, ".");
     novas_entradas[0].inode_number = novo_num_inode;
     strcpy(novas_entradas[1].name, "..");
     novas_entradas[1].inode_number = inode_diretorio_atual;
 
     memset(buffer_bloco, 0, BLOCK_SIZE);
-    memcpy(buffer_bloco, novas_entradas, 2 * sizeof(DirectoryEntry));
+    memcpy(buffer_bloco, novas_entradas, 2 * sizeof(EntradaDiretorio));
     escrever_bloco(novo_num_bloco, buffer_bloco);
 }
 
 void fs_listar() {
-    Inode* inode_dir = &inodos[inode_diretorio_atual];
+    Inode* inode_dir = &inodes[inode_diretorio_atual];
     char buffer_bloco[BLOCK_SIZE];
     ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
 
-    DirectoryEntry* entradas = (DirectoryEntry*)buffer_bloco;
-    int conta_entradas = inode_dir->size / sizeof(DirectoryEntry);
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
+    int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
 
     for (int i = 0; i < conta_entradas; i++) {
-        Inode* inode_entrada = &inodos[entradas[i].inode_number];
+        Inode* inode_entrada = &inodes[entradas[i].inode_number];
         printf("%c - %-4d %-20s %d\n", 
                inode_entrada->type, 
                entradas[i].inode_number, 
@@ -158,15 +154,15 @@ void fs_criar_arquivo(const char* nome) {
     int novo_num_inode = encontrar_inode_livre();
     if (novo_num_inode == -1) { printf("Erro: Sem i-nodes livres.\n"); return; }
 
-    inodos[novo_num_inode].type = 'f';
-    inodos[novo_num_inode].size = bytes_lidos;
+    inodes[novo_num_inode].type = 'f';
+    inodes[novo_num_inode].size = bytes_lidos;
 
     int bytes_para_escrever = bytes_lidos;
     for(int i = 0; i < NUM_DIRECT_POINTERS && bytes_para_escrever > 0; i++) {
         int num_bloco = encontrar_bloco_livre();
         if (num_bloco == -1) { printf("Erro: Sem blocos livres.\n"); return; }
         definir_bit(num_bloco);
-        inodos[novo_num_inode].direct_pointers[i] = num_bloco;
+        inodes[novo_num_inode].direct_pointers[i] = num_bloco;
         
         int tamanho_chunk = (bytes_para_escrever > BLOCK_SIZE) ? BLOCK_SIZE : bytes_para_escrever;
         escrever_bloco(num_bloco, buffer + (bytes_lidos - bytes_para_escrever));
@@ -174,17 +170,17 @@ void fs_criar_arquivo(const char* nome) {
     }
 
     // Adicionar entrada no diretório atual
-    Inode* inode_pai = &inodos[inode_diretorio_atual];
+    Inode* inode_pai = &inodes[inode_diretorio_atual];
     char buffer_bloco_dir[BLOCK_SIZE];
     ler_bloco(inode_pai->direct_pointers[0], buffer_bloco_dir);
     
-    DirectoryEntry* entradas = (DirectoryEntry*)buffer_bloco_dir;
-    int conta_entradas = inode_pai->size / sizeof(DirectoryEntry);
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco_dir;
+    int conta_entradas = inode_pai->size / sizeof(EntradaDiretorio);
     entradas[conta_entradas].inode_number = novo_num_inode;
 
     strncpy(entradas[conta_entradas].name, nome, MAX_FILENAME);
     escrever_bloco(inode_pai->direct_pointers[0], buffer_bloco_dir);
-    inode_pai->size += sizeof(DirectoryEntry);
+    inode_pai->size += sizeof(EntradaDiretorio);
 }
 
 void fs_estado() {
@@ -206,19 +202,18 @@ void fs_mudar_diretorio(const char* caminho) {
         return;
     }
 
-    // 1. Acessa o i-node e o bloco de dados do diretório atual
-    Inode* inode_dir = &inodos[inode_diretorio_atual];
+    //Acessa o i-node e o bloco de dados do diretório atual
+    Inode* inode_dir = &inodes[inode_diretorio_atual];
     char buffer_bloco[BLOCK_SIZE];
     ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
 
-    DirectoryEntry* entradas = (DirectoryEntry*)buffer_bloco;
-    int conta_entradas = inode_dir->size / sizeof(DirectoryEntry);
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
+    int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
 
-    // 2. Procura pelo nome do diretório de destino
+    //Procura pelo nome do diretório de destino
     for (int i = 0; i < conta_entradas; i++) {
         if (strcmp(entradas[i].name, caminho) == 0) {
-            Inode* inode_alvo = &inodos[entradas[i].inode_number];
-            // 3. Verifica se é um diretório
+            Inode* inode_alvo = &inodes[entradas[i].inode_number];
             if (inode_alvo->type == 'd') {
                 // 4. Atualiza o diretório atual
                 inode_diretorio_atual = entradas[i].inode_number;
@@ -230,7 +225,6 @@ void fs_mudar_diretorio(const char* caminho) {
         }
     }
 
-    // 5. Se o loop terminar, o diretório não foi encontrado
     printf("Erro: Diretorio '%s' nao encontrado.\n", caminho);
 }
 
@@ -245,10 +239,10 @@ void fs_obter_caminho_atual(char* buffer_caminho) {
     int inode_temp = inode_diretorio_atual;
 
     while (inode_temp != 0) {
-        Inode* no_atual = &inodos[inode_temp];
+        Inode* no_atual = &inodes[inode_temp];
         char bloco_atual[BLOCK_SIZE];
         ler_bloco(no_atual->direct_pointers[0], bloco_atual);
-        DirectoryEntry* entradas_atual = (DirectoryEntry*)bloco_atual;
+        EntradaDiretorio* entradas_atual = (EntradaDiretorio*)bloco_atual;
         
         int inode_pai = -1;
         if (strcmp(entradas_atual[1].name, "..") == 0) {
@@ -257,11 +251,11 @@ void fs_obter_caminho_atual(char* buffer_caminho) {
 
         if (inode_pai == inode_temp) break;
 
-        Inode* no_pai = &inodos[inode_pai];
+        Inode* no_pai = &inodes[inode_pai];
         char bloco_pai[BLOCK_SIZE];
         ler_bloco(no_pai->direct_pointers[0], bloco_pai);
-        DirectoryEntry* entradas_pai = (DirectoryEntry*)bloco_pai;
-        int conta_entradas_pai = no_pai->size / sizeof(DirectoryEntry);
+        EntradaDiretorio* entradas_pai = (EntradaDiretorio*)bloco_pai;
+        int conta_entradas_pai = no_pai->size / sizeof(EntradaDiretorio);
 
         for (int i = 0; i < conta_entradas_pai; i++) {
             if (entradas_pai[i].inode_number == inode_temp) {
@@ -295,7 +289,6 @@ void fs_mostrar_caminho() {
 void fs_mostrar_arquivo(const char* nome) { printf("Comando 'cat' ainda nao implementado.\n"); }
 void fs_remover(const char* nome) { printf("Comando 'rm' ainda nao implementado.\n"); }
 
-// --- CONTEÚDO DE MAIN.C ---
 
 #define MAX_CMD_LEN 256
 #define MAX_ARGS 10

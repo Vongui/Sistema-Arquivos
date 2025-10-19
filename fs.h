@@ -8,8 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// --- Constantes do Sistema de Arquivos ---
-#define FILESYSTEM_NAME "kleberfs"
+#define FILESYSTEM_NAME "fs"
 #define BLOCK_SIZE 128
 #define PARTITION_SIZE 10240
 #define NUM_BLOCKS (PARTITION_SIZE / BLOCK_SIZE)
@@ -23,10 +22,10 @@ typedef struct {
     int partitionsize;
     int num_blocks;
     int num_inodes;
-} Superblock;
+} Superbloco;
 
 typedef struct {
-    char type; // 'f' (file), 'd' (directory), '0' (free)
+    char type; // 'f' (file), 'd' (diretorio), '0' (free)
     int size;
     int direct_pointers[NUM_DIRECT_POINTERS];
 } Inode;
@@ -34,14 +33,12 @@ typedef struct {
 typedef struct {
     char name[MAX_FILENAME];
     int inode_number;
-} DirectoryEntry;
+} EntradaDiretorio;
 
-// Funções de formatação e montagem (nomes em português)
 void fs_formatar();
 void fs_montar();
 void fs_desmontar();
 
-// Funções de manipulação de diretório/arquivo (nomes em português)
 void fs_criar_diretorio(const char* nome);
 void fs_mudar_diretorio(const char* caminho);
 void fs_mostrar_caminho();
@@ -51,4 +48,4 @@ void fs_listar();
 void fs_remover(const char* nome);
 void fs_estado();
 
-#endif // FS_H
+#endif
