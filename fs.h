@@ -36,21 +36,19 @@ typedef struct {
     int inode_number;
 } DirectoryEntry;
 
-// --- API do Sistema de Arquivos ---
+// Funções de formatação e montagem (nomes em português)
+void fs_formatar();
+void fs_montar();
+void fs_desmontar();
 
-// Funções de formatação e montagem
-void fs_format();
-void fs_mount();
-void fs_unmount();
-
-// Funções de manipulação de diretório/arquivo
-void fs_mkdir(const char* name);
-void fs_cd(const char* path);
-void fs_pwd();
-void fs_touch(const char* name);
-void fs_cat(const char* name);
-void fs_ls();
-void fs_rm(const char* name);
-void fs_stat();
+// Funções de manipulação de diretório/arquivo (nomes em português)
+void fs_criar_diretorio(const char* nome);
+void fs_mudar_diretorio(const char* caminho);
+void fs_mostrar_caminho();
+void fs_criar_arquivo(const char* nome);
+void fs_mostrar_arquivo(const char* nome);
+void fs_listar();
+void fs_remover(const char* nome);
+void fs_estado();
 
 #endif // FS_H
