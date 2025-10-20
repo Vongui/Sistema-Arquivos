@@ -1,6 +1,5 @@
 #include "fs.h"
 
-// --- Variáveis Globais (Estado do FS em Memória) ---
 Superbloco superbloco;
 Inode inodes[NUM_INODES];
 unsigned char mapa_espaco_livre[NUM_BLOCKS / 8];
@@ -88,7 +87,7 @@ void fs_desmontar() {
     fclose(f);
 }
 
-void fs_criar_diretorio(const char* nome) {
+void fs_criar_diretorio(char* nome) {
     int novo_num_inode = encontrar_inode_livre();
     int novo_num_bloco = encontrar_bloco_livre();
 
@@ -142,7 +141,7 @@ void fs_listar() {
     }
 }
 
-void fs_criar_arquivo(const char* nome) {
+void fs_criar_arquivo(char* nome) {
     printf("Digite o conteudo do arquivo (CTRL+D no Linux/macOS ou CTRL+Z no Windows para terminar):\n");
     char buffer[1024] = {0}; 
     int bytes_lidos = 0;
@@ -195,7 +194,7 @@ void fs_estado() {
     printf("Tamanho do bloco: %d Bytes\n", BLOCK_SIZE);
 }
 
-void fs_mudar_diretorio(const char* caminho) {
+void fs_mudar_diretorio(char* caminho) {
     // Tratamento especial para ir direto para a raiz
     if (strcmp(caminho, "/") == 0) {
         inode_diretorio_atual = 0;
@@ -215,7 +214,7 @@ void fs_mudar_diretorio(const char* caminho) {
         if (strcmp(entradas[i].name, caminho) == 0) {
             Inode* inode_alvo = &inodes[entradas[i].inode_number];
             if (inode_alvo->type == 'd') {
-                // 4. Atualiza o diretório atual
+                // Atualiza o diretório atual
                 inode_diretorio_atual = entradas[i].inode_number;
                 return;
             } else {
@@ -286,9 +285,52 @@ void fs_mostrar_caminho() {
 }
 
 
-void fs_mostrar_arquivo(const char* nome) { printf("Comando 'cat' ainda nao implementado.\n"); }
-void fs_remover(const char* nome) { printf("Comando 'rm' ainda nao implementado.\n"); }
+void fs_mostrar_arquivo(char* nome) {
+    Inode* inode_dir = &inodes[inode_diretorio_atual];
+    char buffer_bloco_dir[BLOCK_SIZE];
+    ler_bloco(inode_dir->direct_pointers[0], buffer_bloco_dir);
 
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco_dir;
+    int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
+    int num_inode_arquivo = -1;
+
+    for (int i = 0; i < conta_entradas; i++) {
+        if (strcmp(entradas[i].name, nome) == 0) {
+            num_inode_arquivo = entradas[i].inode_number;
+            break;
+        }
+    }
+
+    if (num_inode_arquivo == -1) {
+        printf("Erro: Arquivo '%s' nao encontrado.\n", nome);
+        return;
+    }
+
+    Inode* inode_arquivo = &inodes[num_inode_arquivo];
+    if (inode_arquivo->type != 'f') {
+        printf("Erro: '%s' nao eh um arquivo.\n", nome);
+        return;
+    }
+
+    char buffer_conteudo[BLOCK_SIZE];
+    int bytes_restantes = inode_arquivo->size;
+
+    for (int i = 0; i < NUM_DIRECT_POINTERS && bytes_restantes > 0; i++) {
+        int num_bloco = inode_arquivo->direct_pointers[i];
+        if (num_bloco == 0) continue; // Pula ponteiros não utilizados
+
+        ler_bloco(num_bloco, buffer_conteudo);
+
+        int bytes_para_ler = (bytes_restantes > BLOCK_SIZE) ? BLOCK_SIZE : bytes_restantes;
+        fwrite(buffer_conteudo, 1, bytes_para_ler, stdout);
+        bytes_restantes -= bytes_para_ler;
+    }
+    printf("\n");
+}
+
+
+//Nao conseguimos implementar este comando a tempo
+// void fs_remover(char* nome) { printf("Comando 'rm' ainda nao implementado.\n"); }
 
 #define MAX_CMD_LEN 256
 #define MAX_ARGS 10
@@ -328,26 +370,35 @@ int main() {
         if (strcmp(args[0], "exit") == 0) {
             break;
         } else if (strcmp(args[0], "mkdir") == 0) {
-            if (nargs > 1) fs_criar_diretorio(args[1]);
-            else printf("Uso: mkdir <nomedodiretorio>\n");
+            if (nargs > 1) 
+                fs_criar_diretorio(args[1]);
+            else 
+                printf("Uso: mkdir <nomedodiretorio>\n");
         } else if (strcmp(args[0], "ls") == 0) {
             fs_listar();
         } else if (strcmp(args[0], "touch") == 0) {
-            if (nargs > 1) fs_criar_arquivo(args[1]);
-            else printf("Uso: touch <nomedoarquivo>\n");
+            if (nargs > 1) 
+                fs_criar_arquivo(args[1]);
+            else 
+                printf("Uso: touch <nomedoarquivo>\n");
         } else if (strcmp(args[0], "stat") == 0) {
             fs_estado();
         } else if (strcmp(args[0], "cd") == 0) {
-            if (nargs > 1) fs_mudar_diretorio(args[1]);
-            else printf("Uso: cd <caminho>\n");
+            if (nargs > 1) 
+                fs_mudar_diretorio(args[1]);
+            else 
+                printf("Uso: cd <caminho>\n");
         } else if (strcmp(args[0], "pwd") == 0) {
             fs_mostrar_caminho();
         } else if (strcmp(args[0], "cat") == 0) {
-            if (nargs > 1) fs_mostrar_arquivo(args[1]);
-            else printf("Uso: cat <nomedoarquivo>\n");
-        } else if (strcmp(args[0], "rm") == 0) {
-            if (nargs > 1) fs_remover(args[1]);
-            else printf("Uso: rm <nome>\n");
+            if (nargs > 1) 
+                fs_mostrar_arquivo(args[1]);
+            else 
+                printf("Uso: cat <nomedoarquivo>\n");
+                
+        // } else if (strcmp(args[0], "rm") == 0) {
+        //     if (nargs > 1) fs_remover(args[1]);
+        //     else printf("Uso: rm <nome>\n");
         } else if (strcmp(args[0], "clear") == 0 || strcmp(args[0], "cls") == 0) {
             system("cls");
         }

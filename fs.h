@@ -39,13 +39,13 @@ void fs_formatar();
 void fs_montar();
 void fs_desmontar();
 
-void fs_criar_diretorio(const char* nome);
-void fs_mudar_diretorio(const char* caminho);
+void fs_criar_diretorio(char* nome);
+void fs_mudar_diretorio(char* caminho);
 void fs_mostrar_caminho();
-void fs_criar_arquivo(const char* nome);
-void fs_mostrar_arquivo(const char* nome);
+void fs_criar_arquivo(char* nome);
+void fs_mostrar_arquivo(char* nome);
 void fs_listar();
-void fs_remover(const char* nome);
+// void fs_remover(char* nome);
 void fs_estado();
 
 #endif
