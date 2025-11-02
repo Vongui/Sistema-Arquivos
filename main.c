@@ -31,6 +31,30 @@ int encontrar_inode_livre() {
     return -1;
 }
 
+int comparar_entradas(const void* a, const void* b) {
+    EntradaDiretorio* entradaA = (EntradaDiretorio*)a;
+    EntradaDiretorio* entradaB = (EntradaDiretorio*)b;
+    return strcmp(entradaA->name, entradaB->name);
+}
+
+int encontrar_inode_por_nome(const char* nome) {
+    Inode* inode_dir = &inodes[inode_diretorio_atual];
+    char buffer_bloco[BLOCK_SIZE];
+    
+    ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
+
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
+    int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
+
+    for (int i = 0; i < conta_entradas; i++) {
+        if (strcmp(entradas[i].name, nome) == 0) {
+            return entradas[i].inode_number;
+        }
+    }
+
+    return -1;
+}
+
 void ler_bloco(int num_bloco, void* buffer) {
     char caminho[256];
     sprintf(caminho, "fs/blocks/%d.dat", num_bloco);
@@ -88,6 +112,13 @@ void fs_desmontar() {
 }
 
 void fs_criar_diretorio(char* nome) {
+
+    if (encontrar_inode_por_nome(nome) != -1)
+    {
+        printf("Erro: Diretorio '%s' ja existe.\n", nome);
+        return;
+    }
+
     int novo_num_inode = encontrar_inode_livre();
     int novo_num_bloco = encontrar_bloco_livre();
 
@@ -126,22 +157,39 @@ void fs_criar_diretorio(char* nome) {
 void fs_listar() {
     Inode* inode_dir = &inodes[inode_diretorio_atual];
     char buffer_bloco[BLOCK_SIZE];
+    
     ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
 
-    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
+    EntradaDiretorio* entradas_originais = (EntradaDiretorio*)buffer_bloco;
     int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
 
+    if (conta_entradas == 0) {
+        return;
+    }
+
+    EntradaDiretorio entradas_para_ordenar[conta_entradas];
+    
+    memcpy(entradas_para_ordenar, entradas_originais, conta_entradas * sizeof(EntradaDiretorio));
+
+    qsort(entradas_para_ordenar, conta_entradas, sizeof(EntradaDiretorio), comparar_entradas);
+
     for (int i = 0; i < conta_entradas; i++) {
-        Inode* inode_entrada = &inodes[entradas[i].inode_number];
+        Inode* inode_entrada = &inodes[entradas_para_ordenar[i].inode_number];
         printf("%c - %-4d %-20s %d\n", 
-               inode_entrada->type, 
-               entradas[i].inode_number, 
-               entradas[i].name, 
-               inode_entrada->size);
+                inode_entrada->type, 
+                entradas_para_ordenar[i].inode_number, 
+                entradas_para_ordenar[i].name, 
+                inode_entrada->size);
     }
 }
 
 void fs_criar_arquivo(char* nome) {
+
+    if (encontrar_inode_por_nome(nome) != -1) {
+        printf("Erro: Arquivo '%s' ja existe.\n", nome);
+        return;
+    }
+
     printf("Digite o conteudo do arquivo (CTRL+D no Linux/macOS ou CTRL+Z no Windows para terminar):\n");
     char buffer[1024] = {0}; 
     int bytes_lidos = 0;

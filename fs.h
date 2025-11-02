@@ -25,7 +25,7 @@ typedef struct {
 } Superbloco;
 
 typedef struct {
-    char type; // 'f' (file), 'd' (diretorio), '0' (free)
+    char type; // 'f' (arquivo), 'd' (diretorio), '0' (livre)
     int size;
     int direct_pointers[NUM_DIRECT_POINTERS];
 } Inode;
