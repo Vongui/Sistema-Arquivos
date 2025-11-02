@@ -45,7 +45,7 @@ void fs_mostrar_caminho();
 void fs_criar_arquivo(char* nome);
 void fs_mostrar_arquivo(char* nome);
 void fs_listar();
-// void fs_remover(char* nome);
+void fs_remover(char* nome);
 void fs_estado();
 
 #endif

@@ -37,18 +37,21 @@ int comparar_entradas(const void* a, const void* b) {
     return strcmp(entradaA->name, entradaB->name);
 }
 
-int encontrar_inode_por_nome(const char* nome) {
+
+int encontrar_indice_entrada_por_nome(const char* nome) {
     Inode* inode_dir = &inodes[inode_diretorio_atual];
-    char buffer_bloco[BLOCK_SIZE];
     
-    ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
+    if (inode_dir->size == 0) return -1;
+    
+    char buffer_bloco[BLOCK_SIZE];
+    ler_bloco(inode_dir->direct_pointers[0], buffer_bloco); 
 
     EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
     int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
 
     for (int i = 0; i < conta_entradas; i++) {
         if (strcmp(entradas[i].name, nome) == 0) {
-            return entradas[i].inode_number;
+            return i;
         }
     }
 
@@ -59,7 +62,9 @@ void ler_bloco(int num_bloco, void* buffer) {
     char caminho[256];
     sprintf(caminho, "fs/blocks/%d.dat", num_bloco);
     FILE* f = fopen(caminho, "rb");
-    if (!f) { perror("ler_bloco"); exit(1); }
+    if (!f) { perror("ler_bloco"); 
+        exit(1); 
+    }
     fread(buffer, BLOCK_SIZE, 1, f);
     fclose(f);
 }
@@ -68,7 +73,9 @@ void escrever_bloco(int num_bloco, void* buffer) {
     char caminho[256];
     sprintf(caminho, "fs/blocks/%d.dat", num_bloco);
     FILE* f = fopen(caminho, "wb");
-    if (!f) { perror("escrever_bloco"); exit(1); }
+    if (!f) { perror("escrever_bloco"); 
+        exit(1); 
+    }
     fwrite(buffer, BLOCK_SIZE, 1, f);
     fclose(f);
 }
@@ -113,7 +120,7 @@ void fs_desmontar() {
 
 void fs_criar_diretorio(char* nome) {
 
-    if (encontrar_inode_por_nome(nome) != -1)
+    if (encontrar_indice_entrada_por_nome(nome) != -1)
     {
         printf("Erro: Diretorio '%s' ja existe.\n", nome);
         return;
@@ -152,6 +159,8 @@ void fs_criar_diretorio(char* nome) {
     memset(buffer_bloco, 0, BLOCK_SIZE);
     memcpy(buffer_bloco, novas_entradas, 2 * sizeof(EntradaDiretorio));
     escrever_bloco(novo_num_bloco, buffer_bloco);
+
+    fs_desmontar();
 }
 
 void fs_listar() {
@@ -185,7 +194,7 @@ void fs_listar() {
 
 void fs_criar_arquivo(char* nome) {
 
-    if (encontrar_inode_por_nome(nome) != -1) {
+    if (encontrar_indice_entrada_por_nome(nome) != -1) {
         printf("Erro: Arquivo '%s' ja existe.\n", nome);
         return;
     }
@@ -199,7 +208,10 @@ void fs_criar_arquivo(char* nome) {
     }
 
     int novo_num_inode = encontrar_inode_livre();
-    if (novo_num_inode == -1) { printf("Erro: Sem i-nodes livres.\n"); return; }
+    if (novo_num_inode == -1) { 
+        printf("Erro: Sem i-nodes livres.\n"); 
+        return; 
+    }
 
     inodes[novo_num_inode].type = 'f';
     inodes[novo_num_inode].size = bytes_lidos;
@@ -207,7 +219,10 @@ void fs_criar_arquivo(char* nome) {
     int bytes_para_escrever = bytes_lidos;
     for(int i = 0; i < NUM_DIRECT_POINTERS && bytes_para_escrever > 0; i++) {
         int num_bloco = encontrar_bloco_livre();
-        if (num_bloco == -1) { printf("Erro: Sem blocos livres.\n"); return; }
+        if (num_bloco == -1) { 
+            printf("Erro: Sem blocos livres.\n"); 
+            return; 
+        }
         definir_bit(num_bloco);
         inodes[novo_num_inode].direct_pointers[i] = num_bloco;
         
@@ -216,7 +231,6 @@ void fs_criar_arquivo(char* nome) {
         bytes_para_escrever -= tamanho_chunk;
     }
 
-    // Adicionar entrada no diretório atual
     Inode* inode_pai = &inodes[inode_diretorio_atual];
     char buffer_bloco_dir[BLOCK_SIZE];
     ler_bloco(inode_pai->direct_pointers[0], buffer_bloco_dir);
@@ -228,6 +242,8 @@ void fs_criar_arquivo(char* nome) {
     strncpy(entradas[conta_entradas].name, nome, MAX_FILENAME);
     escrever_bloco(inode_pai->direct_pointers[0], buffer_bloco_dir);
     inode_pai->size += sizeof(EntradaDiretorio);
+
+    fs_desmontar();
 }
 
 void fs_estado() {
@@ -243,13 +259,11 @@ void fs_estado() {
 }
 
 void fs_mudar_diretorio(char* caminho) {
-    // Tratamento especial para ir direto para a raiz
     if (strcmp(caminho, "/") == 0) {
         inode_diretorio_atual = 0;
         return;
     }
 
-    //Acessa o i-node e o bloco de dados do diretório atual
     Inode* inode_dir = &inodes[inode_diretorio_atual];
     char buffer_bloco[BLOCK_SIZE];
     ler_bloco(inode_dir->direct_pointers[0], buffer_bloco);
@@ -257,12 +271,10 @@ void fs_mudar_diretorio(char* caminho) {
     EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco;
     int conta_entradas = inode_dir->size / sizeof(EntradaDiretorio);
 
-    //Procura pelo nome do diretório de destino
     for (int i = 0; i < conta_entradas; i++) {
         if (strcmp(entradas[i].name, caminho) == 0) {
             Inode* inode_alvo = &inodes[entradas[i].inode_number];
             if (inode_alvo->type == 'd') {
-                // Atualiza o diretório atual
                 inode_diretorio_atual = entradas[i].inode_number;
                 return;
             } else {
@@ -314,13 +326,12 @@ void fs_obter_caminho_atual(char* buffer_caminho) {
         inode_temp = inode_pai;
     }
 
-    // Constrói a string final do caminho
     strcpy(buffer_caminho, "~");
     for (int i = profundidade - 1; i >= 0; i--) {
         strcat(buffer_caminho, "/");
         strcat(buffer_caminho, partes_caminho[i]);
     }
-    // Se o buffer estiver vazio, significa que estamos na raiz
+
     if (strlen(buffer_caminho) == 0) {
         strcpy(buffer_caminho, "~/");
     }
@@ -377,8 +388,59 @@ void fs_mostrar_arquivo(char* nome) {
 }
 
 
-//Nao conseguimos implementar este comando a tempo
-// void fs_remover(char* nome) { printf("Comando 'rm' ainda nao implementado.\n"); }
+void fs_remover(char* nome) {
+    if (strcmp(nome, ".") == 0 || strcmp(nome, "..") == 0) {
+        printf("Erro: Nao eh possivel remover '.' ou '..'.\n");
+        return;
+    }
+
+    int idx_alvo = encontrar_indice_entrada_por_nome(nome);
+    if (idx_alvo == -1) {
+        printf("Erro: Arquivo ou diretorio '%s' nao encontrado.\n", nome);
+        return;
+    }
+
+    Inode* inode_pai = &inodes[inode_diretorio_atual];
+    char buffer_bloco_pai[BLOCK_SIZE];
+    int num_bloco_pai = inode_pai->direct_pointers[0];
+    
+    ler_bloco(num_bloco_pai, buffer_bloco_pai);
+    EntradaDiretorio* entradas = (EntradaDiretorio*)buffer_bloco_pai;
+    
+    int num_inode_alvo = entradas[idx_alvo].inode_number;
+    Inode* inode_alvo = &inodes[num_inode_alvo];
+
+    if (inode_alvo->type == 'f') {
+        for (int i = 0; i < NUM_DIRECT_POINTERS; i++) {
+            if (inode_alvo->direct_pointers[i] != 0) {
+                limpar_bit(inode_alvo->direct_pointers[i]);
+            }
+        }
+    } else if (inode_alvo->type == 'd') {
+        if (inode_alvo->size > 2 * sizeof(EntradaDiretorio)) {
+            printf("Erro: O diretorio '%s' nao esta vazio.\n", nome);
+            return;
+        }
+        limpar_bit(inode_alvo->direct_pointers[0]);
+    }
+
+    memset(inode_alvo, 0, sizeof(Inode));
+    inode_alvo->type = '0';
+
+    int conta_entradas_pai = inode_pai->size / sizeof(EntradaDiretorio);
+    int idx_ultimo = conta_entradas_pai - 1;
+
+    entradas[idx_alvo] = entradas[idx_ultimo];
+
+    memset(&entradas[idx_ultimo], 0, sizeof(EntradaDiretorio)); 
+
+    inode_pai->size -= sizeof(EntradaDiretorio);
+
+    escrever_bloco(num_bloco_pai, buffer_bloco_pai);
+
+    fs_desmontar();
+    printf("'%s' removido com sucesso.\n", nome);
+}
 
 #define MAX_CMD_LEN 256
 #define MAX_ARGS 10
@@ -401,7 +463,7 @@ int main() {
 
         if (fgets(linha_cmd, sizeof(linha_cmd), stdin) == NULL) {
             printf("\n");
-            break; // EOF (CTRL+D ou CTRL+Z)
+            break;
         }
 
         nargs = 0;
@@ -444,9 +506,9 @@ int main() {
             else 
                 printf("Uso: cat <nomedoarquivo>\n");
                 
-        // } else if (strcmp(args[0], "rm") == 0) {
-        //     if (nargs > 1) fs_remover(args[1]);
-        //     else printf("Uso: rm <nome>\n");
+        } else if (strcmp(args[0], "rm") == 0) {
+            if (nargs > 1) fs_remover(args[1]);
+            else printf("Uso: rm <nome>\n");
         } else if (strcmp(args[0], "clear") == 0 || strcmp(args[0], "cls") == 0) {
             system("cls");
         }
