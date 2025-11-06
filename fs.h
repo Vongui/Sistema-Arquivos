@@ -8,8 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// --- Constantes do Sistema de Arquivos ---
-#define FILESYSTEM_NAME "kleberfs"
+#define FILESYSTEM_NAME "fs"
 #define BLOCK_SIZE 128
 #define PARTITION_SIZE 10240
 #define NUM_BLOCKS (PARTITION_SIZE / BLOCK_SIZE)
@@ -23,10 +22,10 @@ typedef struct {
     int partitionsize;
     int num_blocks;
     int num_inodes;
-} Superblock;
+} Superbloco;
 
 typedef struct {
-    char type; // 'f' (file), 'd' (directory), '0' (free)
+    char type; // 'f' (arquivo), 'd' (diretorio), '0' (livre)
     int size;
     int direct_pointers[NUM_DIRECT_POINTERS];
 } Inode;
@@ -34,23 +33,19 @@ typedef struct {
 typedef struct {
     char name[MAX_FILENAME];
     int inode_number;
-} DirectoryEntry;
+} EntradaDiretorio;
 
-// --- API do Sistema de Arquivos ---
+void fs_formatar();
+void fs_montar();
+void fs_desmontar();
 
-// Funções de formatação e montagem
-void fs_format();
-void fs_mount();
-void fs_unmount();
+void fs_criar_diretorio(char* nome);
+void fs_mudar_diretorio(char* caminho);
+void fs_mostrar_caminho();
+void fs_criar_arquivo(char* nome);
+void fs_mostrar_arquivo(char* nome);
+void fs_listar();
+void fs_remover(char* nome);
+void fs_estado();
 
-// Funções de manipulação de diretório/arquivo
-void fs_mkdir(const char* name);
-void fs_cd(const char* path);
-void fs_pwd();
-void fs_touch(const char* name);
-void fs_cat(const char* name);
-void fs_ls();
-void fs_rm(const char* name);
-void fs_stat();
-
-#endif // FS_H
+#endif
