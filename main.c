@@ -37,7 +37,6 @@ int comparar_entradas(const void* a, const void* b) {
     return strcmp(entradaA->name, entradaB->name);
 }
 
-
 int encontrar_indice_entrada_por_nome(const char* nome) {
     Inode* inode_dir = &inodes[inode_diretorio_atual];
     
@@ -343,7 +342,6 @@ void fs_mostrar_caminho() {
     printf("%s\n", caminho_atual);
 }
 
-
 void fs_mostrar_arquivo(char* nome) {
     Inode* inode_dir = &inodes[inode_diretorio_atual];
     char buffer_bloco_dir[BLOCK_SIZE];
@@ -386,7 +384,6 @@ void fs_mostrar_arquivo(char* nome) {
     }
     printf("\n");
 }
-
 
 void fs_remover(char* nome) {
     if (strcmp(nome, ".") == 0 || strcmp(nome, "..") == 0) {
